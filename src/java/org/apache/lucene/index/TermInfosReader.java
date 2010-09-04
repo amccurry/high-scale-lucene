@@ -70,7 +70,8 @@ final class TermInfosReader {
         origEnum = new SegmentTermEnum(directory.openInput(segment + "." + IndexFileNames.TERMS_EXTENSION,
             readBufferSize), fieldInfos, false);
         size = origEnum.size;
-
+        
+        //read in bloom filter.... here if it exists...
 
         if (indexDivisor != -1) {
           // Load terms index

@@ -19,9 +19,13 @@ package org.apache.lucene.index;
 
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.UnicodeUtil;
+
+import com.nearinfinity.bloomfilter.BloomFilter;
 
 /** This stores a monotonically increasing set of <Term, TermInfo> pairs in a
   Directory.  A TermInfos can be written once, in order.  */
@@ -76,15 +80,17 @@ final class TermInfosWriter {
 
   private TermInfosWriter other;
   private UnicodeUtil.UTF8Result utf8Result = new UnicodeUtil.UTF8Result();
-  private long estimatedNumberOfTerms;
+  private BloomFilter<Object> bloomFilter;
+  private double probabilityOfFalsePositives = 0.001d;
+  private ByteBuffer bloomKeyBuffer = ByteBuffer.allocate(1024);
 
   TermInfosWriter(long estimatedNumberOfTerms, Directory directory, String segment, FieldInfos fis,
                   int interval)
        throws IOException {
-	this.estimatedNumberOfTerms = estimatedNumberOfTerms;
     initialize(directory, segment, fis, interval, false);
     other = new TermInfosWriter(directory, segment, fis, interval, true);
     other.other = this;
+    bloomFilter = new BloomFilter<Object>(probabilityOfFalsePositives, estimatedNumberOfTerms, null);
   }
 
   private TermInfosWriter(Directory directory, String segment, FieldInfos fis,
@@ -193,6 +199,10 @@ final class TermInfosWriter {
   private void writeTerm(int fieldNumber, byte[] termBytes, int termBytesLength)
        throws IOException {
 
+	if (!isIndex) {
+	  int keyBuffer = setKeyBuffer(fieldNumber,termBytes,termBytesLength);
+	  bloomFilter.addBytes(bloomKeyBuffer.array(), 0, keyBuffer);
+	}
     // TODO: UTF16toUTF8 could tell us this prefix
     // Compute prefix in common with last term:
     int start = 0;
@@ -216,15 +226,22 @@ final class TermInfosWriter {
     System.arraycopy(termBytes, start, lastTermBytes, start, length);
     lastTermBytesLength = termBytesLength;
   }
+  
+  private int setKeyBuffer(int fieldNumber, byte[] termBytes, int termBytesLength) {
+	bloomKeyBuffer.clear();
+	return bloomKeyBuffer.putInt(fieldNumber).put(termBytes,0,termBytesLength).position();
+  }
 
-  /** Called to complete TermInfos creation. */
+/** Called to complete TermInfos creation. */
   void close() throws IOException {
     output.seek(4);          // write size after format
     output.writeLong(size);
     output.close();
-
-    if (!isIndex)
+    
+    if (!isIndex) {
+      //write out bloom filter.... here
       other.close();
+    }
   }
 
 }
