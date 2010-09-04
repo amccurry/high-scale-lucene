@@ -79,15 +79,7 @@ final class TermInfosReader {
                                                                                     readBufferSize), fieldInfos, true);
 
           try {
-          	String str = System.getProperty(getClass().getName(), "small");
-              if (str.equals("default")) {
-            	  index = new TermInfosReaderIndexDefault();
-              } else if (str.equals("small")) {
-            	  index = new TermInfosReaderIndexSmall(directory,segment);
-              } else {
-            	  throw new IllegalArgumentException("[" + str +
-            	  		"] invalid, only \"default\" or \"small\" valid");
-              }
+              index = new TermInfosReaderIndexSmall(directory,segment);
               index.build(indexEnum, indexDivisor, (int) dir.fileLength(segment + "." + IndexFileNames.TERMS_INDEX_EXTENSION));
               indexLength = index.length();
           } finally {

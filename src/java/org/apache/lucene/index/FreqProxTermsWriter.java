@@ -74,6 +74,8 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     // ThreadStates
     List<FreqProxTermsWriterPerField> allFields = new ArrayList<FreqProxTermsWriterPerField>();
 
+    long estimatedNumberOfTerms = 0;
+    
     for (Map.Entry<TermsHashConsumerPerThread,Collection<TermsHashConsumerPerField>> entry : threadsAndFields.entrySet()) {
 
       Collection<TermsHashConsumerPerField> fields = entry.getValue();
@@ -81,8 +83,10 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
 
       for (final TermsHashConsumerPerField i : fields) {
         final FreqProxTermsWriterPerField perField = (FreqProxTermsWriterPerField) i;
-        if (perField.termsHashPerField.numPostings > 0)
+        if (perField.termsHashPerField.numPostings > 0) {
           allFields.add(perField);
+          estimatedNumberOfTerms += perField.termsHashPerField.numPostings;
+        }
       }
     }
 
@@ -91,7 +95,7 @@ final class FreqProxTermsWriter extends TermsHashConsumer {
     final int numAllFields = allFields.size();
 
     // TODO: allow Lucene user to customize this consumer:
-    final FormatPostingsFieldsConsumer consumer = new FormatPostingsFieldsWriter(state, fieldInfos);
+    final FormatPostingsFieldsConsumer consumer = new FormatPostingsFieldsWriter(estimatedNumberOfTerms,state, fieldInfos);
     /*
     Current writer chain:
       FormatPostingsFieldsConsumer

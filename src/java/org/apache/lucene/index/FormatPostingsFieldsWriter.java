@@ -31,14 +31,15 @@ final class FormatPostingsFieldsWriter extends FormatPostingsFieldsConsumer {
   final DefaultSkipListWriter skipListWriter;
   final int totalNumDocs;
 
-  public FormatPostingsFieldsWriter(SegmentWriteState state, FieldInfos fieldInfos) throws IOException {
+  public FormatPostingsFieldsWriter(long estimatedNumberOfTerms, SegmentWriteState state, FieldInfos fieldInfos) throws IOException {
     super();
 
     dir = state.directory;
     segment = state.segmentName;
     totalNumDocs = state.numDocs;
     this.fieldInfos = fieldInfos;
-    termsOut = new TermInfosWriter(dir,
+    termsOut = new TermInfosWriter(estimatedNumberOfTerms,
+    		                       dir,
                                    segment,
                                    fieldInfos,
                                    state.termIndexInterval);

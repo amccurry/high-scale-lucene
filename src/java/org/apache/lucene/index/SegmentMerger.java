@@ -558,8 +558,15 @@ final class SegmentMerger {
   private final void mergeTerms() throws CorruptIndexException, IOException {
 
     SegmentWriteState state = new SegmentWriteState(null, directory, segment, null, mergedDocs, 0, termIndexInterval);
+    
+    long estimatedNumberOfTerms = 0;
+    final int readerCount = readers.size();
+    for (int i = 0; i < readerCount; i++) {
+      IndexReader reader = readers.get(i);
+      estimatedNumberOfTerms += reader.getUniqueTermCount();
+    }
 
-    final FormatPostingsFieldsConsumer consumer = new FormatPostingsFieldsWriter(state, fieldInfos);
+    final FormatPostingsFieldsConsumer consumer = new FormatPostingsFieldsWriter(estimatedNumberOfTerms, state, fieldInfos);
 
     try {
       queue = new SegmentMergeQueue(readers.size());

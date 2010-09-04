@@ -76,10 +76,12 @@ final class TermInfosWriter {
 
   private TermInfosWriter other;
   private UnicodeUtil.UTF8Result utf8Result = new UnicodeUtil.UTF8Result();
+  private long estimatedNumberOfTerms;
 
-  TermInfosWriter(Directory directory, String segment, FieldInfos fis,
+  TermInfosWriter(long estimatedNumberOfTerms, Directory directory, String segment, FieldInfos fis,
                   int interval)
        throws IOException {
+	this.estimatedNumberOfTerms = estimatedNumberOfTerms;
     initialize(directory, segment, fis, interval, false);
     other = new TermInfosWriter(directory, segment, fis, interval, true);
     other.other = this;
