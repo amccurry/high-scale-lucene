@@ -109,6 +109,14 @@ public class FilterIndexReader extends IndexReader {
     super();
     this.in = in;
   }
+  
+  /**
+   * May be inaccurate.
+   */
+  @Override
+  public long getUniqueTermCount() throws IOException {
+    return in.getUniqueTermCount();
+  }
 
   @Override
   public Directory directory() {

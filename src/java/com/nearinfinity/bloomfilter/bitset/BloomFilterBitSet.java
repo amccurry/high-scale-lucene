@@ -18,7 +18,11 @@
 
 package com.nearinfinity.bloomfilter.bitset;
 
+import java.io.IOException;
 import java.io.Serializable;
+
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.IndexOutput;
 
 /**
  * @author Aaron McCurry (amccurry@nearinfinity.com)
@@ -32,5 +36,9 @@ public abstract class BloomFilterBitSet implements Serializable {
 	public abstract void set(long index);
 
 	public abstract long getMemorySize();
+	
+	public abstract void write(IndexOutput output) throws IOException;
+	
+	public abstract void read(IndexInput input) throws IOException;
 	
 }

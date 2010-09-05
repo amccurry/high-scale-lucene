@@ -18,11 +18,16 @@ package org.apache.lucene.index;
  */
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.util.CloseableThreadLocal;
 import org.apache.lucene.util.cache.Cache;
 import org.apache.lucene.util.cache.SimpleLRUCache;
-import org.apache.lucene.util.CloseableThreadLocal;
+
+import com.nearinfinity.bloomfilter.BloomFilter;
 
 /** This stores a monotonically increasing set of <Term, TermInfo> pairs in a
  * Directory.  Pairs are accessed either by Term or by ordinal position the
@@ -43,6 +48,8 @@ final class TermInfosReader {
   private final int totalIndexInterval;
 
   private final static int DEFAULT_CACHE_SIZE = 1024;
+  
+  private BloomFilter bloomFilter;
   
   /**
    * Per-thread resources managed by ThreadLocal
@@ -72,6 +79,12 @@ final class TermInfosReader {
         size = origEnum.size;
         
         //read in bloom filter.... here if it exists...
+        if (directory.fileExists(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION)) {
+        	bloomFilter = new BloomFilter();
+        	IndexInput openInput = directory.openInput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+			bloomFilter.read(openInput);
+			openInput.close();
+        }
 
         if (indexDivisor != -1) {
           // Load terms index
@@ -144,13 +157,34 @@ final class TermInfosReader {
   private final void seekEnum(SegmentTermEnum enumerator, int indexOffset) throws IOException {
 	    index.seekEnum(enumerator, indexOffset, totalIndexInterval);
   }
-
+  
   /** Returns the TermInfo for a Term in the set, or null. */
   TermInfo get(Term term) throws IOException {
+	if (bloomFilter != null) {
+      byte[] key = getTermKey(term);
+	  if (!bloomFilter.testBytes(key, 0, key.length)) {
+		return null;
+	  }
+	}
     return get(term, true);
   }
   
-  /** Returns the TermInfo for a Term in the set, or null. */
+  private byte[] getTermKey(Term term) {
+	int fieldNumber = fieldInfos.fieldNumber(term.field);
+	try {
+		byte[] bs = term.text.getBytes("UTF-8");
+		int length = bs.length;
+		if (length > TermInfosWriter.BLOOM_BUFFER_SIZE) {
+			length = TermInfosWriter.BLOOM_BUFFER_SIZE;
+		}
+		ByteBuffer buffer = ByteBuffer.allocate(length + 4);
+		return buffer.putInt(fieldNumber).put(bs,0,length).array();
+	} catch (UnsupportedEncodingException e) {
+		throw new RuntimeException(e);
+	}
+  }
+
+/** Returns the TermInfo for a Term in the set, or null. */
   private TermInfo get(Term term, boolean useCache) throws IOException {
     if (size == 0) return null;
 

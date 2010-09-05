@@ -1167,9 +1167,7 @@ public abstract class IndexReader implements Cloneable,Closeable {
    *  Instead, you should call {@link
    *  #getSequentialSubReaders} and ask each sub reader for
    *  its unique term count. */
-  public long getUniqueTermCount() throws IOException {
-    throw new UnsupportedOperationException("this reader does not implement getUniqueTermCount()");
-  }
+  public abstract long getUniqueTermCount() throws IOException;
 
   /** For IndexReader implementations that use
    *  TermInfosReader to read terms, this returns the

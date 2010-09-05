@@ -31,7 +31,9 @@ import com.nearinfinity.bloomfilter.BloomFilter;
   Directory.  A TermInfos can be written once, in order.  */
 
 final class TermInfosWriter {
-  /** The file format version, a negative number. */
+  static final int BLOOM_BUFFER_SIZE = 1024;
+
+/** The file format version, a negative number. */
   public static final int FORMAT = -3;
 
   // Changed strings to true utf8 with length-in-bytes not
@@ -80,9 +82,10 @@ final class TermInfosWriter {
 
   private TermInfosWriter other;
   private UnicodeUtil.UTF8Result utf8Result = new UnicodeUtil.UTF8Result();
-  private BloomFilter<Object> bloomFilter;
+  private BloomFilter bloomFilter;
   private double probabilityOfFalsePositives = 0.001d;
-  private ByteBuffer bloomKeyBuffer = ByteBuffer.allocate(1024);
+  private ByteBuffer bloomKeyBuffer = ByteBuffer.allocate(BLOOM_BUFFER_SIZE + 4);
+  private IndexOutput bloomOutput;
 
   TermInfosWriter(long estimatedNumberOfTerms, Directory directory, String segment, FieldInfos fis,
                   int interval)
@@ -90,7 +93,8 @@ final class TermInfosWriter {
     initialize(directory, segment, fis, interval, false);
     other = new TermInfosWriter(directory, segment, fis, interval, true);
     other.other = this;
-    bloomFilter = new BloomFilter<Object>(probabilityOfFalsePositives, estimatedNumberOfTerms, null);
+    bloomFilter = new BloomFilter(probabilityOfFalsePositives, estimatedNumberOfTerms);
+    bloomOutput = directory.createOutput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
   }
 
   private TermInfosWriter(Directory directory, String segment, FieldInfos fis,
@@ -201,7 +205,9 @@ final class TermInfosWriter {
 
 	if (!isIndex) {
 	  int keyBuffer = setKeyBuffer(fieldNumber,termBytes,termBytesLength);
-	  bloomFilter.addBytes(bloomKeyBuffer.array(), 0, keyBuffer);
+	  if (keyBuffer > 0) {
+		bloomFilter.addBytes(bloomKeyBuffer.array(), 0, keyBuffer); 
+	  }
 	}
     // TODO: UTF16toUTF8 could tell us this prefix
     // Compute prefix in common with last term:
@@ -229,7 +235,11 @@ final class TermInfosWriter {
   
   private int setKeyBuffer(int fieldNumber, byte[] termBytes, int termBytesLength) {
 	bloomKeyBuffer.clear();
-	return bloomKeyBuffer.putInt(fieldNumber).put(termBytes,0,termBytesLength).position();
+	int length = termBytesLength;
+	if (length > BLOOM_BUFFER_SIZE) {
+		length = BLOOM_BUFFER_SIZE;
+	}
+	return bloomKeyBuffer.putInt(fieldNumber).put(termBytes,0,length).position();
   }
 
 /** Called to complete TermInfos creation. */
@@ -240,8 +250,14 @@ final class TermInfosWriter {
     
     if (!isIndex) {
       //write out bloom filter.... here
+      writeBloomFilter();
       other.close();
     }
+  }
+
+  private void writeBloomFilter() throws IOException {
+	bloomFilter.write(bloomOutput);
+	bloomOutput.close();
   }
 
 }

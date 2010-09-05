@@ -67,6 +67,18 @@ public class MultiReader extends IndexReader implements Cloneable {
     initialize(subReaders, closeSubReaders);
   }
   
+  /**
+   * May be inaccurate.
+   */
+  @Override
+  public long getUniqueTermCount() throws IOException {
+	long uniqueTermCount = 0;
+	for (IndexReader reader : subReaders) {
+      uniqueTermCount += reader.getUniqueTermCount();
+	}
+    return uniqueTermCount;
+  }
+  
   private void initialize(IndexReader[] subReaders, boolean closeSubReaders) {
     this.subReaders =  subReaders.clone();
     starts = new int[subReaders.length + 1];    // build starts array

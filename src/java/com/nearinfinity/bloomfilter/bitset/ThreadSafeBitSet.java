@@ -17,8 +17,12 @@
 
 package com.nearinfinity.bloomfilter.bitset;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLongArray;
+
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.IndexOutput;
 
 /**
  * A thread safe implementation of a bit set.  Uses {@link AtomicLongArray} for
@@ -29,9 +33,13 @@ public class ThreadSafeBitSet extends BloomFilterBitSet implements Cloneable, Se
 	private static final long serialVersionUID = -7595377654535919085L;
 	
 	private AtomicLongArray bits;
+	
+	public ThreadSafeBitSet() {
+		
+	}
 
 	public ThreadSafeBitSet(long numBits) {
-		bits = new AtomicLongArray(ThreadUnsafeBitSet.bits2words(numBits));
+		this.bits = new AtomicLongArray(bits2words(numBits));
 	}
 
 	public ThreadSafeBitSet(long[] bits) {
@@ -63,6 +71,28 @@ public class ThreadSafeBitSet extends BloomFilterBitSet implements Cloneable, Se
 	@Override
 	public long getMemorySize() {
 		return (long) bits.length() * 8L;
+	}
+	
+	public static int bits2words(long numBits) {
+		return (int) (((numBits - 1) >>> 6) + 1);
+	}
+
+	@Override
+	public void read(IndexInput input) throws IOException {
+		int length = input.readInt();
+		bits = new AtomicLongArray(length);
+		for (int i = 0; i < length; i++) {
+			bits.set(i, input.readLong());
+		}
+	}
+
+	@Override
+	public void write(IndexOutput output) throws IOException {
+		int length = bits.length();
+		output.writeInt(length);
+		for (int i = 0; i < length; i++) {
+			output.writeLong(bits.get(i));
+		}
 	}
 
 }

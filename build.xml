@@ -76,7 +76,7 @@
   <target name="test-core" depends="common.test"
           description="Runs unit tests for the core Lucene code"
   />
-  <target name="test" depends="test-core, test-contrib, test-tag"
+  <target name="test" depends="test-core, test-tag"
           description="Runs all unit tests (core, contrib and back-compat)"
   />
 

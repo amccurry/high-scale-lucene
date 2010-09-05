@@ -18,11 +18,14 @@
 
 package com.nearinfinity.bloomfilter;
 
+import java.io.IOException;
 import java.io.Serializable;
+
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.IndexOutput;
 
 import com.nearinfinity.bloomfilter.bitset.BloomFilterBitSet;
 import com.nearinfinity.bloomfilter.bitset.ThreadSafeBitSet;
-import com.nearinfinity.bloomfilter.bitset.ThreadUnsafeBitSet;
 
 
 /**
@@ -31,80 +34,53 @@ import com.nearinfinity.bloomfilter.bitset.ThreadUnsafeBitSet;
  * 
  * @author Aaron McCurry (amccurry@nearinfinity.com)
  */
-public class BloomFilter<T> extends BloomFilterFormulas implements Serializable {
+public class BloomFilter extends BloomFilterFormulas implements Serializable {
 	
 	private static final long serialVersionUID = -4837894658242080928L;
 	private static final int seed = 1;
 	
 	private BloomFilterBitSet bitSet;
-	private ToBytes<T> toBytes;
 	private long numberOfBitsDivBy2;
+	private long elementSize;
+	private double probabilityOfFalsePositives;
 	private int hashes;
-
+	private int numberOfBits;
+	
+	public void write(IndexOutput output) throws IOException {
+		output.writeLong(numberOfBitsDivBy2);
+		output.writeLong(elementSize);
+		output.writeLong(Double.doubleToLongBits(probabilityOfFalsePositives));
+		output.writeInt(hashes);
+		output.writeInt(numberOfBits);
+		bitSet.write(output);
+	}
+	
+	public void read(IndexInput input) throws IOException {
+		numberOfBitsDivBy2 = input.readLong();
+		elementSize = input.readLong();
+		probabilityOfFalsePositives = Double.longBitsToDouble(input.readLong());
+		hashes = input.readInt();
+		numberOfBits = input.readInt();
+		bitSet = new ThreadSafeBitSet();
+		bitSet.read(input);
+	}
+	
+	public BloomFilter() {
+		//do nothing
+	}
+	
 	/**
 	 * Creates a bloom filter with the provided number of hashed and hits.
-	 * @param hashes the hashes to be performed.
+	 * @param probabilityOfFalsePositives  the probability of false positives for the given number of elements.
 	 * @param numberOfBits the numberOfBits to be used in the bit set.
-	 * @param threadSafe indicates whether the underlying bit set has to be thread safe or not.
 	 */
-	public BloomFilter(int hashes, long numberOfBits, ToBytes<T> toBytes, boolean threadSafe) {
-		this.hashes = hashes;
+	public BloomFilter(double probabilityOfFalsePositives, long elementSize) {
+		this.hashes = getOptimalNumberOfHashesByBits(elementSize, getNumberOfBits(probabilityOfFalsePositives, elementSize));
+		this.numberOfBits = getNumberOfBits(probabilityOfFalsePositives, elementSize);
 		this.numberOfBitsDivBy2 = numberOfBits / 2;
-		if (threadSafe) {
-			this.bitSet = new ThreadSafeBitSet(numberOfBits);
-		} else {
-			this.bitSet = new ThreadUnsafeBitSet(numberOfBits);
-		}
-		this.toBytes = toBytes;
-	}
-	
-	/**
-	 * Creates a bloom filter with the provided number of hashed and hits.
-	 * @param probabilityOfFalsePositives  the probability of false positives for the given number of elements.
-	 * @param numberOfBits the numberOfBits to be used in the bit set.
-	 * @param threadSafe indicates whether the underlying bit set has to be thread safe or not.
-	 */
-	public BloomFilter(double probabilityOfFalsePositives, long elementSize, ToBytes<T> toBytes, boolean threadSafe) {
-		this(getOptimalNumberOfHashesByBits(elementSize, getNumberOfBits(probabilityOfFalsePositives, elementSize)),
-				getNumberOfBits(probabilityOfFalsePositives, elementSize),
-				toBytes, threadSafe);
-	}
-	
-	/**
-	 * Creates a thread safe bloom filter with the provided number of hashed and hits.
-	 * @param hashes the hashes to be performed.
-	 * @param numberOfBits the numberOfBits to be used in the bit set.
-	 */
-	public BloomFilter(int hashes, long numberOfBits, ToBytes<T> toBytes) {
-		this(hashes,numberOfBits,toBytes,true);
-	}
-	
-	/**
-	 * Creates a thread safe bloom filter with the provided number of hashed and hits.
-	 * @param probabilityOfFalsePositives  the probability of false positives for the given number of elements.
-	 * @param numberOfBits the numberOfBits to be used in the bit set.
-	 */
-	public BloomFilter(double probabilityOfFalsePositives, long elementSize, ToBytes<T> toBytes) {
-		this(probabilityOfFalsePositives,elementSize,toBytes,true);
-	}
-	
-	/**
-	 * Add a key to the bloom filter.
-	 * @param key the key.
-	 */
-	public void add(T key) {
-		byte[] bs = toBytes.toBytes(key);
-		addInternal(bs);
-	}
-
-	/**
-	 * Tests a key in the bloom filter, it may provide false positives.
-	 * @param key the key.
-	 * @return boolean.
-	 */
-	public boolean test(T key) {
-		byte[] bs = toBytes.toBytes(key);
-		return testInternal(bs);
+		this.bitSet = new ThreadSafeBitSet(numberOfBits);
+		this.probabilityOfFalsePositives = probabilityOfFalsePositives;
+		this.elementSize = elementSize;
 	}
 	
 	/**
@@ -146,39 +122,6 @@ public class BloomFilter<T> extends BloomFilterFormulas implements Serializable 
 	 */
 	public long getMemorySize() {
 		return bitSet.getMemorySize();
-	}
-
-	/**
-	 * Test the key against the bit set with the proper number of hashes.
-	 * @param key the key.
-	 * @return boolean.
-	 */
-	private boolean testInternal(byte[] key) {
-		byte[] bs = key;
-		for (int i = 0; i < hashes; i++) {
-			int hash = MurmurHash.hash(seed, bs, bs.length);
-			if (!testBitSet(hash)) {
-				bs[0] -= i; //reset to original value
-				return false;
-			}
-			bs[0]++;
-		}
-		bs[0] -= hashes; //reset to original value
-		return true;
-	}
-	
-	/**
-	 * Adds the key to the bit set with the proper number of hashes.
-	 * @param key the key.
-	 */
-	private void addInternal(byte[] key) {
-		byte[] bs = key;
-		for (int i = 0; i < hashes; i++) {
-			int hash = MurmurHash.hash(seed, bs, bs.length);
-			setBitSet(hash);
-			bs[0]++;
-		}
-		bs[0] -= hashes; //reset to original value
 	}
 
 	/**

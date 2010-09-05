@@ -20,7 +20,6 @@ package org.apache.lucene.index;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-
 import java.util.List;
 
 import org.apache.lucene.document.Document;
@@ -564,6 +563,30 @@ final class SegmentMerger {
     for (int i = 0; i < readerCount; i++) {
       IndexReader reader = readers.get(i);
       estimatedNumberOfTerms += reader.getUniqueTermCount();
+//      try {
+//        estimatedNumberOfTerms += reader.getUniqueTermCount();
+//      } catch (UnsupportedOperationException e) {
+//    	System.err.println("Using DEFAULT_NUMBER_OF_TERMS");
+//    	estimatedNumberOfTerms = DEFAULT_NUMBER_OF_TERMS;
+//    	Directory dir = directory;
+//    	boolean close = false;
+//    	
+//        String seg = null; //???????????????????
+//		if (directory.fileExists(seg + "." + IndexFileNames.COMPOUND_FILE_EXTENSION)) {
+//        	dir = new CompoundFileReader(directory, seg);
+//        	close = true;
+//        }
+//    	if (dir.fileExists(seg + "." + IndexFileNames.BLOOM_FILTER_EXTENSION)) {
+//    		//read the element size
+//    		IndexInput input = directory.openInput(seg + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+//    		input.seek(8);
+//    		estimatedNumberOfTerms = input.readLong();
+//    		input.close();
+//    	}
+//    	if (close) {
+//    		dir.close();
+//    	}
+//	  }
     }
 
     final FormatPostingsFieldsConsumer consumer = new FormatPostingsFieldsWriter(estimatedNumberOfTerms, state, fieldInfos);

@@ -69,6 +69,18 @@ public class ParallelReader extends IndexReader {
     super();
     this.incRefReaders = !closeSubReaders;
   }
+  
+  /**
+   * May be inaccurate.
+   */
+  @Override
+  public long getUniqueTermCount() throws IOException {
+	long uniqueTermCount = 0;
+	for (IndexReader reader : readers) {
+      uniqueTermCount += reader.getUniqueTermCount();
+	}
+    return uniqueTermCount;
+  }
 
  /** Add an IndexReader.
   * @throws IOException if there is a low-level IO error

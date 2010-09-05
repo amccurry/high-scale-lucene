@@ -82,6 +82,10 @@ final class IndexFileNames {
 
   /** Extension of gen file */
   static final String GEN_EXTENSION = "gen";
+  
+  static final String BLOOM_FILTER_EXTENSION = "blf";
+  
+//  static final String TERM_INDEX_INSTANT_ON = "ion";
 
   /**
    * This array contains all filename extensions used by
@@ -107,6 +111,8 @@ final class IndexFileNames {
     GEN_EXTENSION,
     NORMS_EXTENSION,
     COMPOUND_FILE_STORE_EXTENSION,
+    BLOOM_FILTER_EXTENSION,
+//    TERM_INDEX_INSTANT_ON,
   };
 
   /** File extensions that are added to a compound file
@@ -122,7 +128,9 @@ final class IndexFileNames {
     VECTORS_INDEX_EXTENSION,
     VECTORS_DOCUMENTS_EXTENSION,
     VECTORS_FIELDS_EXTENSION,
-    NORMS_EXTENSION
+    NORMS_EXTENSION,
+    BLOOM_FILTER_EXTENSION
+//    TERM_INDEX_INSTANT_ON
   };
 
   static final String[] STORE_INDEX_EXTENSIONS = new String[] {
@@ -139,7 +147,9 @@ final class IndexFileNames {
     PROX_EXTENSION,
     TERMS_EXTENSION,
     TERMS_INDEX_EXTENSION,
-    NORMS_EXTENSION
+    NORMS_EXTENSION,
+    BLOOM_FILTER_EXTENSION
+//    TERM_INDEX_INSTANT_ON
   };
   
   /** File extensions of old-style index files */
@@ -150,7 +160,9 @@ final class IndexFileNames {
     FIELDS_INDEX_EXTENSION,
     FIELDS_EXTENSION,
     TERMS_INDEX_EXTENSION,
-    TERMS_EXTENSION
+    TERMS_EXTENSION,
+    BLOOM_FILTER_EXTENSION
+//    TERM_INDEX_INSTANT_ON
   };
   
   /** File extensions for term vector support */

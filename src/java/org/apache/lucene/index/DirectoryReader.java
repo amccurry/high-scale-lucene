@@ -1259,4 +1259,16 @@ class DirectoryReader extends IndexReader implements Cloneable {
       return ((TermPositions) current).isPayloadAvailable();
     }
   }
+  
+  /**
+   * May be inaccurate.
+   */
+  @Override
+  public long getUniqueTermCount() throws IOException {
+	long uniqueTermCount = 0;
+	for (IndexReader reader : subReaders) {
+      uniqueTermCount += reader.getUniqueTermCount();
+	}
+    return uniqueTermCount;
+  }
 }
