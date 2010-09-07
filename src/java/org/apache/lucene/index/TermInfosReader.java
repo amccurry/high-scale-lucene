@@ -79,11 +79,18 @@ final class TermInfosReader {
         size = origEnum.size;
         
         //read in bloom filter.... here if it exists...
-        if (directory.fileExists(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION)) {
-        	bloomFilter = new BloomFilter();
-        	IndexInput openInput = directory.openInput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
-			bloomFilter.read(openInput);
-			openInput.close();
+        BloomFilter filter = TermInfosIndex.getFromCache(getRealDir(directory), segment);
+        if (filter == null) {
+	        if (directory.fileExists(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION)) {
+//	        	long s = System.currentTimeMillis();
+	        	bloomFilter = new BloomFilter();
+	        	IndexInput openInput = directory.openInput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+				bloomFilter.read(openInput);
+				openInput.close();
+//				System.out.println("Bloom Filter Load time [" + (System.currentTimeMillis() - s) + "]");
+	        }
+        } else {
+//        	System.out.println("Bloom Filter Load Hit Cache....");
         }
 
         if (indexDivisor != -1) {
@@ -93,9 +100,11 @@ final class TermInfosReader {
                                                                                     readBufferSize), fieldInfos, true);
 
           try {
+//        	  long s = System.currentTimeMillis();
               index = new TermInfosReaderIndexSmall(directory,segment);
               index.build(indexEnum, indexDivisor, (int) dir.fileLength(segment + "." + IndexFileNames.TERMS_INDEX_EXTENSION));
               indexLength = index.length();
+//              System.out.println("ION File Load time [" + (System.currentTimeMillis() - s) + "]");
           } finally {
             indexEnum.close();
           }
@@ -115,6 +124,14 @@ final class TermInfosReader {
         close();
       }
     }
+  }
+
+  private Directory getRealDir(Directory directory) {
+	if (directory instanceof CompoundFileReader) {
+      CompoundFileReader compoundFileReader = (CompoundFileReader) directory;
+      return getRealDir(compoundFileReader.getDirectory());
+	}
+	return directory;
   }
 
   public int getSkipInterval() {

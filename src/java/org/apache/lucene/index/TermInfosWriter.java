@@ -86,6 +86,8 @@ final class TermInfosWriter {
   private double probabilityOfFalsePositives = 0.001d;
   private ByteBuffer bloomKeyBuffer = ByteBuffer.allocate(BLOOM_BUFFER_SIZE + 4);
   private IndexOutput bloomOutput;
+  private String segment;
+  private Directory directory;
 
   TermInfosWriter(long estimatedNumberOfTerms, Directory directory, String segment, FieldInfos fis,
                   int interval)
@@ -95,6 +97,8 @@ final class TermInfosWriter {
     other.other = this;
     bloomFilter = new BloomFilter(probabilityOfFalsePositives, estimatedNumberOfTerms);
     bloomOutput = directory.createOutput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+    this.segment = segment;
+    this.directory = directory;
   }
 
   private TermInfosWriter(Directory directory, String segment, FieldInfos fis,
@@ -249,9 +253,9 @@ final class TermInfosWriter {
     output.close();
     
     if (!isIndex) {
-      //write out bloom filter.... here
       writeBloomFilter();
       other.close();
+      TermInfosIndex.addToCache(directory,segment,bloomFilter);
     }
   }
 
