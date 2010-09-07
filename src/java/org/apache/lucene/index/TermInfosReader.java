@@ -79,18 +79,14 @@ final class TermInfosReader {
         size = origEnum.size;
         
         //read in bloom filter.... here if it exists...
-        BloomFilter filter = TermInfosIndex.getFromCache(getRealDir(directory), segment);
+        BloomFilter filter = TermInfosCache.getFromCache(getRealDir(directory), segment);
         if (filter == null) {
 	        if (directory.fileExists(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION)) {
-//	        	long s = System.currentTimeMillis();
 	        	bloomFilter = new BloomFilter();
 	        	IndexInput openInput = directory.openInput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
 				bloomFilter.read(openInput);
 				openInput.close();
-//				System.out.println("Bloom Filter Load time [" + (System.currentTimeMillis() - s) + "]");
 	        }
-        } else {
-//        	System.out.println("Bloom Filter Load Hit Cache....");
         }
 
         if (indexDivisor != -1) {
@@ -98,13 +94,10 @@ final class TermInfosReader {
           totalIndexInterval = origEnum.indexInterval * indexDivisor;
           final SegmentTermEnum indexEnum = new SegmentTermEnum(directory.openInput(segment + "." + IndexFileNames.TERMS_INDEX_EXTENSION,
                                                                                     readBufferSize), fieldInfos, true);
-
           try {
-//        	  long s = System.currentTimeMillis();
-              index = new TermInfosReaderIndexSmall(directory,segment);
+              index = new TermInfosReaderIndex(directory,segment);
               index.build(indexEnum, indexDivisor, (int) dir.fileLength(segment + "." + IndexFileNames.TERMS_INDEX_EXTENSION));
               indexLength = index.length();
-//              System.out.println("ION File Load time [" + (System.currentTimeMillis() - s) + "]");
           } finally {
             indexEnum.close();
           }

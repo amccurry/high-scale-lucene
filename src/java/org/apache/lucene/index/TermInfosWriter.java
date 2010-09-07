@@ -255,7 +255,7 @@ final class TermInfosWriter {
     if (!isIndex) {
       writeBloomFilter();
       other.close();
-      TermInfosIndex.addToCache(directory,segment,bloomFilter);
+      TermInfosCache.addToCache(directory,segment,bloomFilter);
     }
   }
 
