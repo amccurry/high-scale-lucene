@@ -34,6 +34,8 @@ import com.nearinfinity.bloomfilter.BloomFilter;
  * set.  */
 
 final class TermInfosReader {
+  private static final String COM_NEARINFINITY_LUCENE_BLOOMFILTER_READ = "com.nearinfinity.lucene.bloomfilter.read";
+  
   private final Directory directory;
   private final String segment;
   private final FieldInfos fieldInfos;
@@ -50,6 +52,7 @@ final class TermInfosReader {
   private final static int DEFAULT_CACHE_SIZE = 1024;
   
   private BloomFilter bloomFilter;
+  private boolean bloomFilterEnabled = Boolean.getBoolean(COM_NEARINFINITY_LUCENE_BLOOMFILTER_READ);
   
   /**
    * Per-thread resources managed by ThreadLocal
@@ -80,12 +83,15 @@ final class TermInfosReader {
         
         //read in bloom filter.... here if it exists...
         BloomFilter filter = TermInfosCache.getFromCache(getRealDir(directory), segment);
-        if (filter == null) {
+        if (filter == null && bloomFilterEnabled) {
 	        if (directory.fileExists(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION)) {
-	        	bloomFilter = new BloomFilter();
-	        	IndexInput openInput = directory.openInput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
-				bloomFilter.read(openInput);
-				openInput.close();
+	            IndexInput openInput = directory.openInput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+	            if (openInput.readLong() != -1L) {
+	                openInput.seek(0);
+    	        	bloomFilter = new BloomFilter();
+    				bloomFilter.read(openInput);
+    				openInput.close();
+	            }
 	        }
         }
 

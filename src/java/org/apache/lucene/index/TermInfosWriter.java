@@ -31,6 +31,8 @@ import com.nearinfinity.bloomfilter.BloomFilter;
   Directory.  A TermInfos can be written once, in order.  */
 
 final class TermInfosWriter {
+  static final String COM_NEARINFINITY_LUCENE_BLOOMFILTER_WRITE = "com.nearinfinity.lucene.bloomfilter.write";
+  static final String COM_NEARINFINITY_BLOOMFILTER_PROBABILITY = "com.nearinfinity.bloomfilter.probability";
   static final int BLOOM_BUFFER_SIZE = 1024;
 
 /** The file format version, a negative number. */
@@ -83,9 +85,10 @@ final class TermInfosWriter {
   private TermInfosWriter other;
   private UnicodeUtil.UTF8Result utf8Result = new UnicodeUtil.UTF8Result();
   private BloomFilter bloomFilter;
-  private double probabilityOfFalsePositives = 0.001d;
+  private double probabilityOfFalsePositives = Double.parseDouble(System.getProperty(COM_NEARINFINITY_BLOOMFILTER_PROBABILITY,"0.001"));
   private ByteBuffer bloomKeyBuffer = ByteBuffer.allocate(BLOOM_BUFFER_SIZE + 4);
   private IndexOutput bloomOutput;
+  private boolean bloomFilterEnabled = Boolean.getBoolean(COM_NEARINFINITY_LUCENE_BLOOMFILTER_WRITE);
   private String segment;
   private Directory directory;
 
@@ -95,8 +98,14 @@ final class TermInfosWriter {
     initialize(directory, segment, fis, interval, false);
     other = new TermInfosWriter(directory, segment, fis, interval, true);
     other.other = this;
-    bloomFilter = new BloomFilter(probabilityOfFalsePositives, estimatedNumberOfTerms);
-    bloomOutput = directory.createOutput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+    if (bloomFilterEnabled) {
+        bloomFilter = new BloomFilter(probabilityOfFalsePositives, estimatedNumberOfTerms);
+        bloomOutput = directory.createOutput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+    } else {
+        bloomOutput = directory.createOutput(segment + "." + IndexFileNames.BLOOM_FILTER_EXTENSION);
+        bloomOutput.writeLong(-1L);
+        bloomOutput.close();
+    }
     this.segment = segment;
     this.directory = directory;
   }
@@ -207,7 +216,7 @@ final class TermInfosWriter {
   private void writeTerm(int fieldNumber, byte[] termBytes, int termBytesLength)
        throws IOException {
 
-	if (!isIndex) {
+	if (!isIndex && bloomFilterEnabled) {
 	  int keyBuffer = setKeyBuffer(fieldNumber,termBytes,termBytesLength);
 	  if (keyBuffer > 0) {
 		bloomFilter.addBytes(bloomKeyBuffer.array(), 0, keyBuffer); 
@@ -255,13 +264,17 @@ final class TermInfosWriter {
     if (!isIndex) {
       writeBloomFilter();
       other.close();
-      TermInfosCache.addToCache(directory,segment,bloomFilter);
+      if (bloomFilterEnabled) {
+          TermInfosCache.addToCache(directory,segment,bloomFilter);
+      }
     }
   }
 
   private void writeBloomFilter() throws IOException {
-	bloomFilter.write(bloomOutput);
-	bloomOutput.close();
+    if (bloomFilterEnabled) {
+	  bloomFilter.write(bloomOutput);
+	  bloomOutput.close();
+    }
   }
 
 }
